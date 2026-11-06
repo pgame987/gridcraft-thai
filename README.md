@@ -1,3 +1,10 @@
+<h2 align="center"><a href="#thai">รองรับภาษาไทย · Thai language support</a></h2>
+
+<p align="center">
+  <b>Thai interface · Thai printing · Thai PDF export</b><br>
+  <a href="#upstream">For the <b>storytold/gridcraft</b> maintainers: a small, upstream-ready patch →</a>
+</p>
+
 <p align="center">
   <a href="https://getartcraft.com/">
     <picture>
@@ -60,7 +67,7 @@
 > last week. If you make things, you're one of us. **[Come say hi on Discord](https://discord.gg/artcraft).**
 
 <p align="center">
-  <a href="#thai"><b>ภาษาไทย / Thai support</b></a> ·
+  <a href="#thai"><b>รองรับภาษาไทย / Thai support</b></a> ·
   <a href="#a-look-around">A look around</a> ·
   <a href="#why-gridcraft">Why GridCraft</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -106,11 +113,12 @@ cargo run --release -p gridcraft
 เลือก `ไทย` ที่ View → Interface language หรือ ตัวเลือก (Options) → ภาษาส่วนต่อประสาน · Choose `ไทย` under View → Interface language or Options.
 เอกสาร: [สถานะแปลภาษาไทย](docs/localization-th.md), [การพิมพ์ภาษาไทย](docs/thai-printing.md), [ความเท่าเทียมของภาษา](docs/localization-parity.md), [crates/pdf/README.md](crates/pdf/README.md) · Docs: [Thai UI status](docs/localization-th.md), [Thai printing](docs/thai-printing.md), [localization parity](docs/localization-parity.md), [PDF crate](crates/pdf/README.md).
 
-### ถึงทีมพัฒนา [storytold/gridcraft](https://github.com/storytold/gridcraft) / To the upstream maintainers
+<a id="upstream"></a>
 
-**ภาษาไทย:** เราอยากเชิญให้ลองนำภาษาไทยเข้า official ครับ งานชุดนี้ตั้งใจทำให้เป็น patch เล็ก ๆ ที่เข้ากับสถาปัตยกรรมเดิม ไม่ใช่ฟอร์กที่แยกขาด: ไฟล์ภาษาไทยใช้รูปแบบเดียวกับ `es.rs` / `el.rs` ทุกประการ ผ่าน `xtask i18n-report` (`th: 0 missing`, help `0 stale`) และเทสต์เรื่อง placeholder / accessible name ที่มีอยู่เดิมโดยไม่ต้องแก้ ส่วน PDF เป็นแบบเลือกได้ — ไม่ตั้งค่า `CRAFT_FONTS_DIR` ก็ได้ไฟล์เหมือน upstream ทุกไบต์ ไม่มีฟอนต์เข้า repo และ WASM ยังใช้ทางเดิม ส่วน `docs/thai-printing.md` มีตารางแยกชิ้นงานให้ cherry-pick ทีละส่วนได้ (UI / PDF / เอกสาร / การค้นหาเครื่องพิมพ์) เรายินดี rebase แตกเป็น PR เล็ก ๆ ปรับคำศัพท์ให้ตรง glossary เพิ่มเทสต์ หรือส่ง diff ให้เขียนใหม่ก็ได้ ถ้าสนใจ ขอให้เปิด issue มาคุยกันครับ — อยากเห็นภาษาไทยเป็นภาษาหลักใน GridCraft ฉบับทางการ มากกว่าต้องอยู่ในฟอร์กครับ
+### To the maintainers of [storytold/gridcraft](https://github.com/storytold/gridcraft) / ถึงทีมพัฒนา
 
-**English:** Thai is one of the largest audiences a spreadsheet can still leave behind, and we would much rather see this work in upstream GridCraft than maintained as a permanent fork. It was deliberately built to make adoption a small, low-risk, *boring* change:
+> [!NOTE]
+> **A note for the upstream team (English).** Thai is one of the largest audiences a spreadsheet can still leave behind, and we would much rather see this work in official GridCraft than maintained as a permanent fork. It was deliberately built to make adoption a small, low-risk, *boring* change — here is exactly what a review would involve.
 
 - **No new architecture.** Thai is one more `crates/ui-egui/src/i18n/th.rs` catalog in exactly the shape of `es.rs` / `el.rs`, plus `th_functions.rs`, one `Language` variant, and the usual entries in `ALL`, `name`, `code`, `from_tag` and `tr`. `cargo xtask i18n-report` reports `th: 0 missing` and `0 stale` help rows, and the existing placeholder, sorting and accessible-name tests pass untouched.
 - **A zero-risk default.** Thai PDF support is opt-in at build time. Without `CRAFT_FONTS_DIR`, `crates/pdf` emits a byte-for-byte identical PDF (verified by hash), commits no font bytes, and keeps WASM on the existing non-embedded path. Non-Thai users see no behaviour change at all.
@@ -119,6 +127,8 @@ cargo run --release -p gridcraft
 - **Already exercised end to end.** A Windows release build exports Thai PDFs with selectable, extractable Thai text, and the Print page lists installed printers immediately even with offline network queues.
 
 We are happy to rebase, split this into PRs sized for your review process, align terminology with your glossary, add whatever tests you would like, or simply hand over the diffs if you would prefer to rewrite them. **Good places to start are [`docs/localization-th.md`](docs/localization-th.md) and [`docs/thai-printing.md`](docs/thai-printing.md)** — and please do open an issue. We would love to help make Thai a first-class language in official GridCraft.
+
+**ภาษาไทย (สรุปสั้น ๆ / Thai summary):** เราอยากเชิญทีม official ลองรับภาษาไทยเข้า [storytold/gridcraft](https://github.com/storytold/gridcraft) ครับ งานชุดนี้ใช้ catalog รูปแบบเดียวกับภาษาอื่น ไม่มีฟอนต์เข้า repo ไม่กระทบ WASM และแยก cherry-pick ได้ทีละส่วนตามตารางใน [`docs/thai-printing.md`](docs/thai-printing.md) รายละเอียดเชิงเทคนิคและข้อเสนอสำหรับการ review เขียนเป็นภาษาอังกฤษไว้ด้านบนครับ — ยินดีแตก PR ปรับคำศัพท์ หรือเปิด issue คุยได้เลย
 
 ## A look around
 
