@@ -50,12 +50,17 @@
   <br><sub><b>Quarterly Sales Dashboard</b>: a table with a totals row, conditional formatting, sparklines and two live charts — built entirely from GridCraft commands (<code>File → New → Sample</code>).</sub>
 </p>
 
+> [!IMPORTANT]
+> **รองรับภาษาไทยแบบเต็มรูปแบบ / Full Thai language support.** ฟอร์กนี้เพิ่มภาษาไทยให้ทั้งส่วนติดต่อผู้ใช้ **และ** การพิมพ์ / ส่งออก PDF — ดู [ภาษาไทย / Thai language support](#thai)<br>
+> **English:** This community fork of [storytold/gridcraft](https://github.com/storytold/gridcraft) adds a complete Thai interface **and** Thai-capable printing / PDF export — see [Thai language support](#thai).
+
 > [!NOTE]
 > **ArtCraft is a community of artists from all walks of life.** Painters, photographers,
 > filmmakers, illustrators, designers, animators, hobbyists, and people who picked up a pencil
 > last week. If you make things, you're one of us. **[Come say hi on Discord](https://discord.gg/artcraft).**
 
 <p align="center">
+  <a href="#thai"><b>ภาษาไทย / Thai support</b></a> ·
   <a href="#a-look-around">A look around</a> ·
   <a href="#why-gridcraft">Why GridCraft</a> ·
   <a href="#quick-start">Quick start</a> ·
@@ -65,6 +70,55 @@
   <a href="#the-crafting-apps">The Crafting Apps</a> ·
   <a href="#license-and-credits">License and credits</a>
 </p>
+
+<a id="thai"></a>
+
+## ภาษาไทย / Thai language support
+
+**รองรับภาษาไทยแบบเต็มรูปแบบ ทั้งหน้าจอและเอกสารที่พิมพ์** · **Thai, end to end: in the interface and in printed / exported PDF output.**
+
+| ภาษาไทย | English |
+|---|---|
+| **ส่วนติดต่อผู้ใช้ภาษาไทย** — แถบ ribbon เมนู กล่องโต้ตอบ หน้าพิมพ์ และวิธีใช้ฟังก์ชัน รวม 1,197 ข้อความ UI + 723 รายการ help ใช้ไฟล์ catalog รูปแบบเดียวกับภาษาอื่นทุกประการ (`th.rs`, `th_functions.rs`, `Language::Th` / `th` / `ไทย` / `th-TH`) | **Thai interface** — 1,197 UI strings and 723 function-help entries registered through the same Rust catalogs, enum wiring and `cargo xtask i18n-report` gates as every other language. No new locale format, no JSON sidecar. |
+| **พิมพ์และส่งออก PDF เป็นภาษาไทยได้** — ฝังฟอนต์ Noto Sans Thai (OFL) ด้วย Type0 / `Identity-H`, `CIDFontType2` และ `/ToUnicode` ทำให้ข้อความไทยใน PDF ยังคัดลอก ค้นหา และอ่านเป็นข้อความได้ ไม่กลายเป็นกล่องสี่เหลี่ยม | **Thai printing and PDF export** — an optional embedded Noto Sans Thai face written as a Type0 / `Identity-H` CID font with a `/ToUnicode` map, so Thai text stays selectable and searchable instead of turning into tofu. |
+| **ไม่มีไฟล์ฟอนต์อยู่ใน repo** — รับฟอนต์ผ่าน `CRAFT_FONTS_DIR` ตามนโยบาย `storytold/craft-fonts` เดิม ถ้าไม่ได้ตั้งค่า ไฟล์ PDF จะเหมือน upstream ทุกไบต์ และ WASM ไม่เปลี่ยนแปลง | **No font bytes in the repository** — the face arrives through `CRAFT_FONTS_DIR`, reusing the existing `storytold/craft-fonts` policy. With no font input, PDF output is byte-identical to upstream and WebAssembly builds are unchanged. |
+| **เจอเครื่องพิมพ์ทันทีบน Windows** — เลิกเรียก `PrintCapabilities` ของทุกไดรเวอร์ตอนค้นหา (เดิมรอ ~37 วินาทีเมื่อมีคิวเน็ตเวิร์กออฟไลน์ เหลือ ~0.07 วินาที) แต่ยังตรวจความสามารถ duplex ตอนสั่งพิมพ์ตามเดิม | **Instant Windows printer discovery** — enumeration no longer waits for every driver's `PrintCapabilities` (~37 s with offline network queues, now ~0.07 s). Duplex detection still happens at print time, so printing behaviour is unchanged. |
+
+<p align="center">
+  <img src="docs/images/thai-ui-ribbon.png" alt="GridCraft spreadsheet window in Thai: ribbon tabs หน้าแรก, แทรก, วาด, สูตร, ข้อมูล, ตรวจทาน, มุมมอง, ช่วยเหลือ, Thai Home ribbon controls, an empty Book1 grid, a Sheet1 tab and the status text พร้อม" width="100%">
+  <br><sub><b>หน้าต่างหลักภาษาไทย / The Thai ribbon.</b> ทุกแท็บและปุ่มแปลเป็นภาษาไทย ตั้งแต่ หน้าแรก ถึง ช่วยเหลือ / Every tab and control is localised, from หน้าแรก to ช่วยเหลือ.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/thai-options.png" alt="GridCraft Backstage Options page in Thai: the ตัวเลือก heading, a left menu with ย้อนกลับ, หน้าแรก, ใหม่, เปิด, ข้อมูล, บันทึก, บันทึกเป็น, พิมพ์, ส่งออก, ปิด, บัญชี, ตัวเลือก, and the ภาษาส่วนต่อประสาน dropdown set to ไทย" width="100%">
+  <br><sub><b>เลือกภาษาไทย / Choosing Thai.</b> ตัวเลือก → ภาษาส่วนต่อประสาน = <code>ไทย</code> / Options → Interface language = <code>ไทย</code>.</sub>
+</p>
+
+### ลองใช้งาน / Try it
+
+```sh
+# ฟอนต์ไทยเป็น build-time input เท่านั้น (ดูรายละเอียดใน docs/thai-printing.md)
+# The Thai face is a build-time input only; see docs/thai-printing.md
+export CRAFT_FONTS_DIR=/path/to/craft-fonts       # Windows: $env:CRAFT_FONTS_DIR="C:\path\to\craft-fonts"
+cargo run --release -p gridcraft
+```
+
+เลือก `ไทย` ที่ View → Interface language หรือ ตัวเลือก (Options) → ภาษาส่วนต่อประสาน · Choose `ไทย` under View → Interface language or Options.
+เอกสาร: [สถานะแปลภาษาไทย](docs/localization-th.md), [การพิมพ์ภาษาไทย](docs/thai-printing.md), [ความเท่าเทียมของภาษา](docs/localization-parity.md), [crates/pdf/README.md](crates/pdf/README.md) · Docs: [Thai UI status](docs/localization-th.md), [Thai printing](docs/thai-printing.md), [localization parity](docs/localization-parity.md), [PDF crate](crates/pdf/README.md).
+
+### ถึงทีมพัฒนา [storytold/gridcraft](https://github.com/storytold/gridcraft) / To the upstream maintainers
+
+**ภาษาไทย:** เราอยากเชิญให้ลองนำภาษาไทยเข้า official ครับ งานชุดนี้ตั้งใจทำให้เป็น patch เล็ก ๆ ที่เข้ากับสถาปัตยกรรมเดิม ไม่ใช่ฟอร์กที่แยกขาด: ไฟล์ภาษาไทยใช้รูปแบบเดียวกับ `es.rs` / `el.rs` ทุกประการ ผ่าน `xtask i18n-report` (`th: 0 missing`, help `0 stale`) และเทสต์เรื่อง placeholder / accessible name ที่มีอยู่เดิมโดยไม่ต้องแก้ ส่วน PDF เป็นแบบเลือกได้ — ไม่ตั้งค่า `CRAFT_FONTS_DIR` ก็ได้ไฟล์เหมือน upstream ทุกไบต์ ไม่มีฟอนต์เข้า repo และ WASM ยังใช้ทางเดิม ส่วน `docs/thai-printing.md` มีตารางแยกชิ้นงานให้ cherry-pick ทีละส่วนได้ (UI / PDF / เอกสาร / การค้นหาเครื่องพิมพ์) เรายินดี rebase แตกเป็น PR เล็ก ๆ ปรับคำศัพท์ให้ตรง glossary เพิ่มเทสต์ หรือส่ง diff ให้เขียนใหม่ก็ได้ ถ้าสนใจ ขอให้เปิด issue มาคุยกันครับ — อยากเห็นภาษาไทยเป็นภาษาหลักใน GridCraft ฉบับทางการ มากกว่าต้องอยู่ในฟอร์กครับ
+
+**English:** Thai is one of the largest audiences a spreadsheet can still leave behind, and we would much rather see this work in upstream GridCraft than maintained as a permanent fork. It was deliberately built to make adoption a small, low-risk, *boring* change:
+
+- **No new architecture.** Thai is one more `crates/ui-egui/src/i18n/th.rs` catalog in exactly the shape of `es.rs` / `el.rs`, plus `th_functions.rs`, one `Language` variant, and the usual entries in `ALL`, `name`, `code`, `from_tag` and `tr`. `cargo xtask i18n-report` reports `th: 0 missing` and `0 stale` help rows, and the existing placeholder, sorting and accessible-name tests pass untouched.
+- **A zero-risk default.** Thai PDF support is opt-in at build time. Without `CRAFT_FONTS_DIR`, `crates/pdf` emits a byte-for-byte identical PDF (verified by hash), commits no font bytes, and keeps WASM on the existing non-embedded path. Non-Thai users see no behaviour change at all.
+- **Your font policy, unchanged.** The OFL face comes from `storytold/craft-fonts` and is documented in `ATTRIBUTION.md` rather than vendored into the main repository.
+- **Small, separable pieces.** [`docs/thai-printing.md`](docs/thai-printing.md) includes an adoption map that splits UI localization, PDF embedding, documentation and the Windows printer-discovery fix into independent commits — each can be reviewed, reworded or declined on its own.
+- **Already exercised end to end.** A Windows release build exports Thai PDFs with selectable, extractable Thai text, and the Print page lists installed printers immediately even with offline network queues.
+
+We are happy to rebase, split this into PRs sized for your review process, align terminology with your glossary, add whatever tests you would like, or simply hand over the diffs if you would prefer to rewrite them. **Good places to start are [`docs/localization-th.md`](docs/localization-th.md) and [`docs/thai-printing.md`](docs/thai-printing.md)** — and please do open an issue. We would love to help make Thai a first-class language in official GridCraft.
 
 ## A look around
 
@@ -116,6 +170,7 @@ cargo run --release -p gridcraft -- --sample sales --control 7979   # + JSON con
 cargo xtask ci                                                 # fmt, clippy, tests, assets, layering, wasm
 ```
 
+Choose `ไทย` under View → Interface language for the [Thai UI, Thai function help and Thai printing](docs/localization-th.md) (see [Thai language support](#thai)).
 Choose Español under View → Interface language for [Spanish formula names, decimal commas, and semicolon arguments](docs/formula-input.md).
 Workbooks, clipboard exchange, and programmatic APIs retain canonical English syntax.
 

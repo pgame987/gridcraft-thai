@@ -2024,7 +2024,9 @@ dependencies = [
  "rfd",
  "serde_json",
  "winit",
+ "winprint",
  "winresource",
+ "winsafe",
 ]
 
 [[package]]

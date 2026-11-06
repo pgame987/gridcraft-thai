@@ -333,6 +333,87 @@ fn cjk_text_is_not_replaced_by_question_marks() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// Thai PDF text has two paths: an ordinary build (no `CRAFT_FONTS_DIR`) keeps the pre-existing
+/// non-embedded Adobe-GB1 CID fallback, while a build with the OFL Thai face embeds a Type0 font.
+/// Both must keep the surrounding Latin and CJK runs intact and produce a valid xref. Run this
+/// suite twice, with and without the build input, to cover both paths.
+#[test]
+fn thai_text_keeps_latin_and_cjk_runs_in_both_build_modes() -> Result<(), Box<dyn Error>> {
+    let mut doc = PdfDoc::new();
+    let p = doc.add_page(612.0, 792.0);
+    p.text(10.0, 20.0, 10.0, Font::Helvetica, [0, 0, 0], "ยอดขาย 1,234.50 บาท 中文");
+    let pdf = doc.finish();
+    check_xref(&pdf)?;
+    assert!(find(&pdf, b"( 1,234.50 ) Tj").is_some(), "Latin stays in WinAnsiEncoding");
+    assert!(find(&pdf, b"<4E2D6587> Tj").is_some(), "CJK stays in the Adobe-GB1 CID font");
+    assert!(find(&pdf, b"(????) Tj").is_none(), "no Thai character becomes a question mark");
+    if thai_font_available() {
+        assert!(find(&pdf, b"<0023002E0015000300330023> Tj").is_some(), "ยอดขาย as Identity-H CIDs");
+        assert!(find(&pdf, b"<001B00330018> Tj").is_some(), "บาท as Identity-H CIDs");
+    } else {
+        assert!(find(&pdf, b"<0E220E2D0E140E020E320E22> Tj").is_some(), "ยอดขาย as UTF-16BE");
+        assert!(find(&pdf, b"<0E1A0E320E17> Tj").is_some(), "บาท as UTF-16BE");
+    }
+    Ok(())
+}
+
+/// Extended acceptance: only runs when `CRAFT_FONTS_DIR` supplied the Thai face. The emitted font
+/// must be a complete, extractable Type0 / Identity-H font, not just a renamed CID fallback.
+#[test]
+fn embedded_thai_face_emits_a_complete_identity_font() -> Result<(), Box<dyn Error>> {
+    if !thai_font_available() {
+        return Ok(());
+    }
+    let mut doc = PdfDoc::new();
+    let p = doc.add_page(612.0, 792.0);
+    p.text(10.0, 20.0, 12.0, Font::Helvetica, [0, 0, 0], "ไทย");
+    let pdf = doc.finish();
+    check_xref(&pdf)?;
+    let s = String::from_utf8_lossy(&pdf);
+    assert!(s.contains("/F15 "), "the Thai font is a separate page resource");
+    assert!(s.contains("/Subtype /Type0 /BaseFont /NotoSansThai-Regular /Encoding /Identity-H"));
+    assert!(s.contains("/Subtype /CIDFontType2"));
+    assert!(s.contains("/FontFile2") && s.contains("/Length1 "), "the TrueType bytes are embedded");
+    assert!(s.contains("/CIDToGIDMap") && s.contains("/W [1 ["), "CIDs map to glyphs and widths");
+    assert!(s.contains("/ToUnicode") && s.contains("/CIDInit /ProcSet findresource begin"));
+    assert!(s.contains("<0045> <0E44>"), "a CID maps back to its Unicode scalar");
+    assert!(find(&pdf, b"<004500180023> Tj").is_some(), "ไทย as two-byte CIDs");
+    Ok(())
+}
+
+/// An ordinary build must not gain any Thai font objects: the extra font slot stays unused.
+#[test]
+fn a_build_without_the_thai_face_keeps_the_original_fonts() -> Result<(), Box<dyn Error>> {
+    if thai_font_available() {
+        return Ok(());
+    }
+    let mut doc = PdfDoc::new();
+    let p = doc.add_page(612.0, 792.0);
+    p.text(10.0, 20.0, 10.0, Font::Helvetica, [0, 0, 0], "ไทย");
+    let pdf = doc.finish();
+    check_xref(&pdf)?;
+    let s = String::from_utf8_lossy(&pdf);
+    assert!(s.contains("/Encoding /UniGB-UTF16-H"));
+    assert!(!s.contains("/Identity-H"));
+    assert!(!s.contains("/FontFile2"));
+    assert!(!s.contains("/F15 "));
+    assert_eq!(text_width(Font::Helvetica, 10.0, "ไทย"), 30.0, "CID fallback still measures full-width");
+    Ok(())
+}
+
+/// The same advance widths feed `/W` and `text_width`, so cells measured by the engine print at
+/// the width the embedded face actually uses.
+#[test]
+fn embedded_thai_widths_match_text_measurement() {
+    if !thai_font_available() {
+        return;
+    }
+    let w = Font::Helvetica.char_width('ก');
+    assert!(w > 0 && w < 1000, "a consonant's advance width is in 1/1000 em");
+    assert_eq!(text_width(Font::Helvetica, 1000.0, "ก"), f32::from(w));
+    assert_ne!(Font::Helvetica.char_width('ก'), CID_WIDTH, "Thai is no longer measured as a CJK glyph");
+}
+
 #[test]
 fn symbol_font_draws_maths_in_its_own_encoding() {
     let mut doc = PdfDoc::new();

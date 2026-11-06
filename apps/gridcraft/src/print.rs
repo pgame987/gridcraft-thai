@@ -1,19 +1,44 @@
 //! Desktop spooler adapter. Discovery and submission never run on the UI thread.
 use gridcraft_ui_egui::printing::{Discover, Duplex, Printer, Settings, Submit};
 
-/// Returns a printer-discovery closure that enumerates `craft_print::printers()` on a named background thread and sends the mapped list through a channel.
+/// Returns a printer-discovery closure that enumerates the system's printers on a named background thread and sends the mapped list through a channel.
 pub fn discover() -> Discover {
     Box::new(|| {
         let (sender, receiver) = std::sync::mpsc::channel();
         let _ = std::thread::Builder::new().name("print-discovery".into()).spawn(move || {
-            let printers = craft_print::printers()
-                .into_iter()
-                .map(|printer| Printer { name: printer.name, label: printer.description, default: printer.default })
-                .collect();
-            let _ = sender.send(printers);
+            let _ = sender.send(list());
         });
         receiver
     })
+}
+
+/// Windows: the spooler's queue names and the default queue, straight from Win32.
+///
+/// `craft_print::printers()` also asks every driver for its PrintCapabilities to report duplex
+/// support. An unreachable shared queue can stall each of those COM calls for seconds, leaving the
+/// Print page with an empty printer list for the best part of a minute. The desktop UI does not
+/// show that flag, so enumeration alone is enough here; submission still reads the selected
+/// driver's capabilities when it prints.
+#[cfg(windows)]
+fn list() -> Vec<Printer> {
+    let Ok(devices) = winprint::printer::PrinterDevice::all() else {
+        return Vec::new();
+    };
+    let default = winsafe::GetDefaultPrinter().ok().filter(|name| !name.is_empty());
+    let mut printers: Vec<Printer> = devices
+        .iter()
+        .map(|device| device.name())
+        .filter(|name| !name.trim().is_empty())
+        .map(|name| Printer { name: name.to_owned(), label: String::new(), default: default.as_deref() == Some(name) })
+        .collect();
+    printers.sort_by(|a, b| a.name.cmp(&b.name));
+    printers.dedup_by(|a, b| a.name == b.name);
+    printers
+}
+
+#[cfg(not(windows))]
+fn list() -> Vec<Printer> {
+    craft_print::printers().into_iter().map(|printer| Printer { name: printer.name, label: printer.description, default: printer.default }).collect()
 }
 
 // Keep submission workers reachable until normal app shutdown; dropping a JoinHandle would

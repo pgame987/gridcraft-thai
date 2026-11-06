@@ -2,7 +2,7 @@
 
 **Stage: alpha** · next: beta, ~25 points of "ready for real work" and ~160–240 h away
 
-> **Last reviewed:** 2026-11-01 · **Last updated:** 2026-11-02 · **Change:** minor (form controls: buttons, sliders and spin buttons; earlier: RefEdit reference boxes in dialogs: Goal Seek, Solver and Data Analysis take ranges by selection on the grid; earlier: Python mode in the formula bar; earlier: Python cells stored and kept in files; earlier: equations: Insert › Equation, editor, gridcraft-math; earlier: What-if and analysis: Solver Sensitivity report for Simplex LP and GRG Nonlinear; earlier: floating objects: one selection, eight resize handles, keyboard delete; earlier: Chart data tables: live source values beneath column, bar, line, area and compatible combo charts; legend keys and borders; XLSX round-trip and print/PDF; earlier: Formulas › Function Library as labelled buttons with category menus; Recently Used and Insert Function categories; XLSX workbook-view selection, bounded tab ratios and sheet-edit regressions; readiness estimates unchanged; earlier: CSV and text open detects each column's date order, so day-first dates are not silently swapped) · **Target:** Microsoft Excel (Microsoft 365)
+> **Last reviewed:** 2026-11-01 · **Last updated:** 2026-11-05 · **Change:** minor (Thai interface language and optional embedded Thai PDF/print face; earlier: form controls: buttons, sliders and spin buttons; earlier: RefEdit reference boxes in dialogs: Goal Seek, Solver and Data Analysis take ranges by selection on the grid; earlier: Python mode in the formula bar; earlier: Python cells stored and kept in files; earlier: equations: Insert › Equation, editor, gridcraft-math; earlier: What-if and analysis: Solver Sensitivity report for Simplex LP and GRG Nonlinear; earlier: floating objects: one selection, eight resize handles, keyboard delete; earlier: Chart data tables: live source values beneath column, bar, line, area and compatible combo charts; legend keys and borders; XLSX round-trip and print/PDF; earlier: Formulas › Function Library as labelled buttons with category menus; Recently Used and Insert Function categories; XLSX workbook-view selection, bounded tab ratios and sheet-edit regressions; readiness estimates unchanged; earlier: CSV and text open detects each column's date order, so day-first dates are not silently swapped) · **Target:** Microsoft Excel (Microsoft 365)
 
 GridCraft aims at full Microsoft Excel parity, and at being better in places: faster, open (XLSX
 is the native format), fully scriptable by agents (MCP, control channel, CLI), and on the web.
@@ -127,7 +127,9 @@ Ranked; estimates in Opus 5.5 agent-hours. Detail and the full beta-gate list in
 2. **XLSX fidelity on a real-world corpus**, with Excel opening our output without repair: 25–35 h.
 3. **Large workbooks and recalc speed**: 100 MB XLSX, 1M rows, multi-threaded recalc: 40–60 h.
 4. **Charts depth**: kinds and options round-trip, axes, trendlines, error bars: 25–35 h.
-5. **Text in every script** (CJK, Thai, Arabic, Devanagari) in cells and PDF: 12–20 h.
+5. **Text in every script** (CJK, Thai, Arabic, Devanagari) in cells and PDF: 12–20 h. Thai PDF
+   text is now printable through an optional embedded OFL face (`docs/thai-printing.md`); shaping,
+   subsetting, WASM coverage and the other scripts remain open.
 6. **Legacy `.xls` import and password-protected workbooks**: 20–30 h.
 7. **Localization**: extend the catalog past the ribbon, then the twelve languages: 100–165 h.
 
@@ -135,6 +137,7 @@ Ranked; estimates in Opus 5.5 agent-hours. Detail and the full beta-gate list in
 
 | Date | What landed |
 |---|---|
+| 2026-11-05 | Thai: a new interface language (`th`, ไทย) with 1,197 UI labels and 723 function-help rows in the standard Rust catalogs; and printable Thai in `file.print` / `file.exportPdf`: `crates/pdf` optionally embeds an OFL face from the external `CRAFT_FONTS_DIR` build input as a Type0 / `Identity-H` font with `/ToUnicode`, `/CIDToGIDMap` and `/W`. Ordinary builds are byte-identical. No font bytes are added to this repository. See `docs/thai-printing.md` and `docs/localization-th.md` |
 | 2026-11-02 | Form controls: Insert › Controls places buttons, sliders (scroll bars) and spin buttons on the sheet. A slider or spin button holds a whole number from 0 to 30000 in a linked cell (a drag or a held arrow is one undo step, and editing the cell moves the control); a button runs a macro or one command through the macro policy, asking first in a workbook opened from a file; Assign Action and Format Control edit them, and XLSX files read and write them (control properties, `<controls>` and VML), alongside the form controls GridCraft keeps unchanged |
 | 2026-11-02 | Dialogs take ranges by selection on the grid: reference boxes (RefEdit) with a collapse button that shrinks the dialog while the person selects, in Goal Seek, Solver (including the Model Range of Load/Save) and Data Analysis; while collapsed, the arrow keys move the selection and Shift+arrow extends it, and F4 cycles a reference's anchors |
 | 2026-11-02 | Python mode in the formula bar: Ctrl+Alt+Shift+P, `=PY` then Tab, or editing a Python cell edits its code in the formula bar, with Enter for a new line, Tab to indent and Ctrl+Enter to commit through `python.set`. The code still doesn't run |
@@ -258,6 +261,7 @@ Ranked; estimates in Opus 5.5 agent-hours. Detail and the full beta-gate list in
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-05 | minor | Thai interface language; optional embedded Thai PDF/print face; localization parity and progress log rows |
 | 2026-11-02 | minor | Form controls; catalog 277 / 292 → 281 / 296 (Developer › Controls); progress log row |
 | 2026-11-02 | minor | Progress log: RefEdit reference boxes in dialogs |
 | 2026-11-02 | minor | Progress log: Python mode in the formula bar |

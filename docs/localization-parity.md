@@ -1,6 +1,6 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-23 · **Change:** minor (missing translations are listed by `cargo xtask i18n-report` and never fail a check) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-11-05 · **Change:** minor (Thai interface catalog and optional embedded Thai PDF face; earlier: missing translations are listed by `cargo xtask i18n-report` and never fail a check) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
 
 Per-language status against Excel, which ships its UI in dozens of languages (Windows language
 packs cover 100+), with localized function names, argument separators, number and date formats,
@@ -58,7 +58,12 @@ right-to-left sheets and full complex-script support. Part of
 - **Names in any script.** Defined names (Define Name, Create from Selection) are limited to
   255 characters, counted as characters rather than UTF-8 bytes, so a 255-letter Arabic name is
   accepted as in Excel. Sheet names already counted characters (31).
-- **PDF export** uses only the 14 standard PDF fonts: non-Latin text cannot export.
+- **PDF export** uses the 14 standard PDF fonts plus a predefined, non-embedded Adobe-GB1 CID
+  font, so non-Latin text keeps its code points but no viewer can render it. The optional
+  `CRAFT_FONTS_DIR` build input adds one OFL Thai face: with it, `file.print` and `file.exportPdf`
+  embed a Type0 / `Identity-H` Thai font with `/ToUnicode`, so printed Thai renders and extracts
+  correctly. Without it the PDF is byte-identical to builds without the feature. Other scripts
+  still cannot export; see [thai-printing.md](thai-printing.md).
 
 ## Languages
 
@@ -84,6 +89,7 @@ separators, number/date formats, machine translation with agent review, and scri
 | Korean | ko | 266 (~12%) | no | Hangul via the CJK fallback; IME unverified | no | menus only | 6–10 h |
 | Vietnamese | vi | 0 (0%) | no | Latin with stacked diacritics: unverified | no | none | 6–10 h |
 | Turkish | tr | 382 (~17%) | no | Latin: yes | yes | menus only | 4–8 h |
+| Thai | th | 1,197 (~54%) | function help, dialogs and messages | Thai system-font fallback (#38); **PDF/print with an embedded OFL face** when `CRAFT_FONTS_DIR` supplies it (`thai-printing.md`), otherwise the old non-embedded CID fallback; shaping and WASM fallback unverified | no | menus, File view, dialogs, messages, function help, Thai printing | 12–20 h |
 
 Other shipped languages: Russian (ru), German (de), Czech (cs), French (fr) and Turkish (tr), menus only.
 | Vietnamese | vi | 398 (~18%) | no | Latin with stacked diacritics: unverified | no | menus, File view | 5–9 h |
@@ -104,12 +110,14 @@ language (none so far) and of localized function names.
    separators in CSV.
 3. Text shaping and fallback: a shaping engine for grid, editor and PDF text (Arabic, Devanagari,
    Thai), system font fallback for CJK, bidirectional runs, right-to-left sheet tabs and printing;
-   embedded subset fonts in PDF.
+   embedded subset fonts in PDF. Thai is the first script with an optional embedded, unsubsetted
+   PDF face (`thai-printing.md`); the general case is still open.
 
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-11-05 | minor | Thai (`th`, ไทย) interface: 1,197 catalog rows and 723 function-help rows in the standard Rust catalog shape (`i18n/th.rs`, `i18n/th_functions.rs`, `Language::Th`), `th-*` locale tags, no native-speaker review yet. Thai printing/PDF: an optional OFL face from `CRAFT_FONTS_DIR` is embedded as a Type0 / `Identity-H` font with `/ToUnicode`, so `file.print` and `file.exportPdf` render and preserve Thai text; an ordinary build stays byte-identical. See `docs/thai-printing.md` and `docs/localization-th.md` |
 | 2026-10-23 | minor | Missing translations are reported, never a failure: `cargo xtask i18n-report` prints, per language, the strings other catalogs translate and it lacks (plus Spanish function help rows keyed by English the function catalog no longer has) and always passes; `cargo xtask ci` runs it first. Coverage and per-language parity tests and tests of one language's exact wording are gone; UI tests take the expected text from the catalog. Duplicate-key, placeholder, context-prefix and line-shape checks stay |
 | 2026-10-21 | minor | Romanian interface (`ro`, Română): 970 labels covering every key of the other catalogs (`crates/ui-egui/src/i18n/ro.rs`), `ro-*` system locales, the View-tab switcher and `app.language.set`; context keys show no prefix (File › Options test). English formulas and formats; AI-assisted draft pending native-speaker review |
 | 2026-10-20 | minor | Japanese: furigana (`rPh` phonetic runs and `<phoneticPr>` in `xl/sharedStrings.xml`) is no longer deleted by an open + save; it is kept on the workbook and written back (a `<phoneticPr>` without runs is kept too, while duplicate texts with different readings keep only the first, reported on open). Display of the readings is still missing (`crates/xlsx/src/tests/phonetic_tests.rs`) |

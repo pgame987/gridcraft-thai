@@ -3,8 +3,11 @@
 //! - The 14 standard fonts (no embedding) with WinAnsiEncoding, plus approximate width tables
 //!   ([`text_width`]) so callers can measure, align and wrap text. Characters outside
 //!   WinAnsiEncoding (CJK and other scripts) are set in a predefined, non-embedded Adobe-GB1 CID
-//!   font with the `UniGB-UTF16-H` CMap instead of being replaced by `?`. Symbol uses its own
-//!   built-in encoding ([`symbol_code`]), for Greek letters and mathematical operators.
+//!   font with the `UniGB-UTF16-H` CMap instead of being replaced by `?`. With the optional
+//!   craft-fonts build input, Thai is set in an embedded OFL TrueType face through a Type0 /
+//!   Identity-H font with a ToUnicode CMap, so printed Thai renders and can be copied out of the
+//!   PDF (see [`thai`] and [`thai_font_available`]). Symbol uses its own built-in encoding
+//!   ([`symbol_code`]), for Greek letters and mathematical operators.
 //! - Vector drawing: rectangles, lines (solid or dashed), polygons, circles (Bézier), clipping.
 //! - RGBA images as RGB image XObjects with a soft mask for alpha (run-length encoded).
 //! - Coordinates are points with a **top-left origin** (y grows down); text `y` is the baseline.
@@ -14,10 +17,18 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 #![forbid(unsafe_code)]
 
+mod embed;
 mod metrics;
 mod symbol;
+mod thai;
 
 pub use symbol::{symbol_code, symbol_width};
+
+/// Whether this build embedded the OFL Thai face from the optional `CRAFT_FONTS_DIR` input.
+/// False builds keep the pre-existing non-embedded CID fallback (see `docs/thai-printing.md`).
+pub fn thai_font_available() -> bool {
+    thai::available()
+}
 
 use std::fmt::Write as _;
 
@@ -178,6 +189,9 @@ impl Font {
             Font::TimesBold | Font::TimesBoldItalic => Some(&metrics::TIMES_BOLD),
             _ => None,
         };
+        if thai::available() && thai::is_thai(c) {
+            return thai::char_width(c);
+        }
         if needs_cid(c) {
             return CID_WIDTH;
         }
@@ -247,8 +261,11 @@ pub fn win_ansi(c: char) -> u8 {
 
 /// Index of the CID font in a page's font flags (after the [`Font::ALL`] faces).
 const CID_FONT: usize = Font::ALL.len();
+/// Index of the embedded Thai Type0 font, after the CID font. The slot is always reserved, but
+/// only marked used when a build actually has the face, so ordinary builds emit the same PDF.
+const THAI_FONT: usize = CID_FONT + 1;
 /// Number of font resources a page can use.
-const FONT_SLOTS: usize = CID_FONT + 1;
+const FONT_SLOTS: usize = THAI_FONT + 1;
 /// Base font of the CID font used for characters WinAnsiEncoding lacks.
 const CID_BASE_FONT: &str = "STSong-Light";
 /// Default glyph width of the CID font (full-width), in 1/1000 em.
@@ -259,12 +276,44 @@ fn needs_cid(c: char) -> bool {
     !c.is_control() && c != '?' && win_ansi(c) == b'?'
 }
 
+/// Which font a character in a text run needs. Thai takes its own slot only when the optional
+/// build input supplied a face; otherwise it keeps the pre-existing CID fallback.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RunKind {
+    WinAnsi,
+    Cid,
+    Thai,
+}
+
+fn run_kind(c: char) -> RunKind {
+    if thai::available() && thai::is_thai(c) {
+        RunKind::Thai
+    } else if needs_cid(c) {
+        RunKind::Cid
+    } else {
+        RunKind::WinAnsi
+    }
+}
+
 /// A PDF hex string `< … >` of `text` in UTF-16BE (the `UniGB-UTF16-H` encoding).
 fn pdf_utf16_string(text: &str) -> String {
     let mut s = String::with_capacity(text.len() * 4 + 2);
     s.push('<');
     for unit in text.encode_utf16() {
         let _ = write!(s, "{unit:04X}");
+    }
+    s.push('>');
+    s
+}
+
+/// A PDF hex string `< … >` of two-byte Identity-H CIDs for Thai text.
+fn pdf_thai_string(text: &str) -> String {
+    let mut s = String::with_capacity(text.len() * 4 + 2);
+    s.push('<');
+    for c in text.chars() {
+        if let Some(code) = thai::cid(c) {
+            let _ = write!(s, "{code:04X}");
+        }
     }
     s.push('>');
     s
@@ -625,14 +674,19 @@ impl Page {
             self.op(&s);
             return;
         }
-        // Runs of WinAnsi text use `font`; runs it cannot encode use the CID font. Each `Tj`
-        // advances the text position, so the runs follow each other on the baseline.
+        // Runs of WinAnsi text use `font`; other scripts switch to the CID font, and Thai to the
+        // embedded Type0 face when one was supplied at build time. Each `Tj` advances the text
+        // position, so the runs follow each other on the baseline.
         let mut rest = text;
         while let Some(first) = rest.chars().next() {
-            let cid = needs_cid(first);
-            let end = rest.char_indices().find(|(_, c)| needs_cid(*c) != cid).map_or(rest.len(), |(i, _)| i);
+            let kind = run_kind(first);
+            let end = rest.char_indices().find(|(_, c)| run_kind(*c) != kind).map_or(rest.len(), |(i, _)| i);
             let (run, tail) = rest.split_at(end);
-            let (slot, string) = if cid { (CID_FONT, pdf_utf16_string(run)) } else { (fi, pdf_string(run)) };
+            let (slot, string) = match kind {
+                RunKind::WinAnsi => (fi, pdf_string(run)),
+                RunKind::Cid => (CID_FONT, pdf_utf16_string(run)),
+                RunKind::Thai => (THAI_FONT, pdf_thai_string(run)),
+            };
             if let Some(f) = self.fonts.get_mut(slot) {
                 *f = true;
             }
@@ -738,6 +792,82 @@ fn pdf_text_string(text: &str) -> String {
     s
 }
 
+/// The `/Resources` font dictionary shared by every page, with its objects and the next free
+/// object id. Ids start at 4 (1 catalog, 2 page tree, 3 info). Kept out of [`PdfDoc::finish`] so
+/// that the three font kinds — standard Type1, the predefined CID fallback and the optional
+/// embedded Thai Type0 — each own their own serialization.
+fn font_resources(pages: &[Page]) -> (Vec<(u32, Vec<u8>)>, String, u32) {
+    let mut used = [false; FONT_SLOTS];
+    for p in pages {
+        for (u, f) in used.iter_mut().zip(p.fonts.iter()) {
+            *u |= *f;
+        }
+    }
+    let mut next = 4u32;
+    let mut ids = [0u32; FONT_SLOTS];
+    for (i, u) in used.iter().enumerate() {
+        if *u {
+            ids[i] = next;
+            // The CID font also needs a descendant and a descriptor; the embedded Thai Type0 font
+            // needs six objects (font, descendant, descriptor, FontFile2, CIDToGIDMap, ToUnicode).
+            next += if i == CID_FONT {
+                3
+            } else if i == THAI_FONT {
+                6
+            } else {
+                1
+            };
+        }
+    }
+    let mut objects: Vec<(u32, Vec<u8>)> = Vec::new();
+    let mut dict = String::new();
+    for (i, id) in ids.iter().enumerate() {
+        if *id == 0 {
+            continue;
+        }
+        let _ = write!(dict, "/F{} {} 0 R ", i + 1, id);
+        if i == CID_FONT {
+            objects.extend(cid_font_objects(*id));
+            continue;
+        }
+        if i == THAI_FONT {
+            // Only reachable when `run_kind` saw Thai with an embedded face.
+            objects.extend(thai::font_objects(*id));
+            continue;
+        }
+        let name = Font::ALL.get(i).copied().unwrap_or_default().base_name();
+        let enc = if name.starts_with("Symbol") { "" } else { " /Encoding /WinAnsiEncoding" };
+        objects.push((*id, format!("<< /Type /Font /Subtype /Type1 /BaseFont /{name}{enc} >>").into_bytes()));
+    }
+    (objects, dict, next)
+}
+
+/// The three objects of the predefined, non-embedded Adobe-GB1 fallback for non-Latin text.
+fn cid_font_objects(id: u32) -> Vec<(u32, Vec<u8>)> {
+    let (cid_id, desc_id) = (id + 1, id + 2);
+    vec![
+        (
+            id,
+            format!("<< /Type /Font /Subtype /Type0 /BaseFont /{CID_BASE_FONT} /Encoding /UniGB-UTF16-H /DescendantFonts [{cid_id} 0 R] >>")
+                .into_bytes(),
+        ),
+        (
+            cid_id,
+            format!(
+                "<< /Type /Font /Subtype /CIDFontType0 /BaseFont /{CID_BASE_FONT} /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 4 >> /FontDescriptor {desc_id} 0 R /DW {CID_WIDTH} >>"
+            )
+            .into_bytes(),
+        ),
+        (
+            desc_id,
+            format!(
+                "<< /Type /FontDescriptor /FontName /{CID_BASE_FONT} /Flags 6 /FontBBox [-25 -254 1000 880] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 880 /StemV 93 >>"
+            )
+            .into_bytes(),
+        ),
+    ]
+}
+
 impl PdfDoc {
     pub fn new() -> PdfDoc {
         PdfDoc::default()
@@ -767,59 +897,10 @@ impl PdfDoc {
             self.add_page(612.0, 792.0);
         }
         // Object numbering: 1 catalog, 2 page tree, 3 info, then fonts, then per page.
-        let mut used = [false; FONT_SLOTS];
-        for p in &self.pages {
-            for (u, f) in used.iter_mut().zip(p.fonts.iter()) {
-                *u |= *f;
-            }
-        }
-        let mut next = 4u32;
-        let mut font_ids = [0u32; FONT_SLOTS];
-        for (i, u) in used.iter().enumerate() {
-            if *u {
-                font_ids[i] = next;
-                // The CID font also needs its descendant font and font descriptor.
-                next += if i == CID_FONT { 3 } else { 1 };
-            }
-        }
-        let mut objects: Vec<(u32, Vec<u8>)> = Vec::new();
+        let (mut objects, font_dict, mut next) = font_resources(&self.pages);
         let mut kids = Vec::new();
         let mut annotations = Vec::new();
         let page_count = self.pages.len();
-        let mut font_dict = String::new();
-        for (i, id) in font_ids.iter().enumerate() {
-            if *id != 0 {
-                let _ = write!(font_dict, "/F{} {} 0 R ", i + 1, id);
-                if i == CID_FONT {
-                    let (cid_id, desc_id) = (id + 1, id + 2);
-                    objects.push((
-                        *id,
-                        format!(
-                            "<< /Type /Font /Subtype /Type0 /BaseFont /{CID_BASE_FONT} /Encoding /UniGB-UTF16-H /DescendantFonts [{cid_id} 0 R] >>"
-                        )
-                        .into_bytes(),
-                    ));
-                    objects.push((
-                        cid_id,
-                        format!(
-                            "<< /Type /Font /Subtype /CIDFontType0 /BaseFont /{CID_BASE_FONT} /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 4 >> /FontDescriptor {desc_id} 0 R /DW {CID_WIDTH} >>"
-                        )
-                        .into_bytes(),
-                    ));
-                    objects.push((
-                        desc_id,
-                        format!(
-                            "<< /Type /FontDescriptor /FontName /{CID_BASE_FONT} /Flags 6 /FontBBox [-25 -254 1000 880] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 880 /StemV 93 >>"
-                        )
-                        .into_bytes(),
-                    ));
-                    continue;
-                }
-                let name = Font::ALL.get(i).copied().unwrap_or_default().base_name();
-                let enc = if name.starts_with("Symbol") { "" } else { " /Encoding /WinAnsiEncoding" };
-                objects.push((*id, format!("<< /Type /Font /Subtype /Type1 /BaseFont /{name}{enc} >>").into_bytes()));
-            }
-        }
         for page in &mut self.pages {
             while page.depth > 0 {
                 page.restore();

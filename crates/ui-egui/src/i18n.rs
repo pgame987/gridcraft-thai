@@ -24,6 +24,8 @@ mod pt;
 mod ro;
 mod ru;
 mod sr;
+mod th;
+mod th_functions;
 mod tr;
 mod uk;
 mod vi;
@@ -53,10 +55,11 @@ pub enum Language {
     Vi,
     Nl,
     Ro,
+    Th,
 }
 
 impl Language {
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::En,
         Self::Es,
         Self::El,
@@ -76,11 +79,13 @@ impl Language {
         Self::Nl,
         Self::Ro,
         Self::Tr,
+        Self::Th,
     ];
 
     /// Every language in the order the switcher lists them: English first (the source language),
     /// then the rest by their own name with accents folded, so Čeština sits under C. Names in
-    /// other scripts follow the Latin ones in code point order: Cyrillic, then the CJK languages.
+    /// other scripts follow the Latin ones in code point order: Cyrillic, Thai, then the CJK
+    /// languages.
     pub fn for_picker() -> Vec<Self> {
         let mut rest: Vec<Self> = Self::ALL.into_iter().filter(|l| *l != Self::En).collect();
         rest.sort_by_cached_key(|l| name_sort_key(l.name()));
@@ -109,6 +114,7 @@ impl Language {
             Self::Vi => "Tiếng Việt",
             Self::Nl => "Nederlands",
             Self::Ro => "Română",
+            Self::Th => "ไทย",
         }
     }
 
@@ -134,6 +140,7 @@ impl Language {
             Self::Vi => "vi",
             Self::Nl => "nl",
             Self::Ro => "ro",
+            Self::Th => "th",
         }
     }
 
@@ -168,6 +175,7 @@ impl Language {
             "vi" => Some(Self::Vi),
             "nl" => Some(Self::Nl),
             "ro" => Some(Self::Ro),
+            "th" => Some(Self::Th),
             _ => None,
         }
     }
@@ -214,6 +222,7 @@ impl Language {
             Self::Vi => vi::translate(text),
             Self::Nl => nl::translate(text),
             Self::Ro => ro::translate(text),
+            Self::Th => th::translate(text),
         };
         translated.unwrap_or_else(|| text.rsplit_once('|').map_or(text, |(_, label)| label))
     }
@@ -243,6 +252,7 @@ impl Language {
     fn function_help(self) -> Option<(HelpTable, HelpTable)> {
         match self {
             Self::Es => Some((es_functions::DESCRIPTIONS, es_functions::ARGUMENTS)),
+            Self::Th => Some((th_functions::DESCRIPTIONS, th_functions::ARGUMENTS)),
             _ => None,
         }
     }
@@ -474,6 +484,9 @@ mod tests {
         assert_eq!(Language::from_tag("ro-RO"), Some(Language::Ro));
         assert_eq!(Language::from_tag("ro_MD.UTF-8"), Some(Language::Ro));
         assert_eq!(Language::parse("ro"), Some(Language::Ro));
+        assert_eq!(Language::from_tag("th-TH"), Some(Language::Th));
+        assert_eq!(Language::from_tag("th_TH.UTF-8"), Some(Language::Th));
+        assert_eq!(Language::parse("th"), Some(Language::Th));
     }
     #[test]
     fn an_unset_language_preference_is_english_until_the_app_applies_the_system_one() {

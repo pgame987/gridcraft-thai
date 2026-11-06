@@ -1,6 +1,21 @@
 # gridcraft-pdf
 
-A small, dependency-free PDF 1.7 writer for vector drawing and RGBA images.
+A small, dependency-free PDF 1.7 writer for vector drawing and RGBA images. Text uses the 14
+standard fonts with `WinAnsiEncoding`, Symbol's built-in encoding, and a predefined non-embedded
+Adobe-GB1 CID font for other scripts.
+
+## Optional Thai face for print and PDF export
+
+`CRAFT_FONTS_DIR=<absolute storytold/craft-fonts checkout>` is an optional build input, the same
+one `crates/ui-egui/build.rs` uses. When its `fonts/manifest.txt` lists the OFL `Noto Sans Thai`
+face, `build.rs` generates a font table and Thai text in `file.print` / `file.exportPdf` output is
+set in an embedded Type0 / `Identity-H` font with a `/ToUnicode` CMap, so it prints and can be
+copied out of the PDF. Without the input, Thai keeps the previous CID fallback and the PDF is
+byte-identical to a build without this feature. No font bytes live in this repository.
+
+`gridcraft_pdf::thai_font_available()` reports which path the build took. See
+[docs/thai-printing.md](../../docs/thai-printing.md) for the manifest row, the file layout and the
+verification recipe.
 
 ## API migration
 
